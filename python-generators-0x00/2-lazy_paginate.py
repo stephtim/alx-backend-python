@@ -18,10 +18,9 @@ def paginate_users(page_size, offset):
     connection = connect_to_prodev()
     cursor = connection.cursor(dictionary=True)
 
-    cursor.execute(
-        "SELECT * FROM user_data ORDER BY user_id LIMIT %s OFFSET %s",
-        (page_size, offset)
-    )
+    # ✅ Integrated version: using LIMIT and OFFSET explicitly
+    query = f"SELECT * FROM user_data LIMIT {page_size} OFFSET {offset};"
+    cursor.execute(query)
     rows = cursor.fetchall()
 
     cursor.close()
@@ -34,7 +33,7 @@ def lazy_paginate(page_size):
     Uses only one loop.
     """
     offset = 0
-    while True:  # ✅ only loop
+    while True:  # ✅ single loop
         page = paginate_users(page_size, offset)
         if not page:
             break
