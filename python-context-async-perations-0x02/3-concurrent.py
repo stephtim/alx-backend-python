@@ -1,48 +1,38 @@
-# Run multiple database queries concurrently using asyncio.gather.
-
+# aiosqlite library to interact with SQLite asynchronously
 import asyncio
-import aiomysql
+import aiosqlite
 
 
 # Async function to fetch all users
-async def async_fetch_users(pool):
-    async with pool.acquire() as conn:
-        async with conn.cursor(aiomysql.DictCursor) as cur:
-            await cur.execute("SELECT * FROM users;")
-            result = await cur.fetchall()
+async def async_fetch_users():
+    async with aiosqlite.connect("ALX_prodev.db") as db:
+        db.row_factory = aiosqlite.Row  # return rows as dictionaries
+        async with db.execute("SELECT * FROM users;") as cursor:
+            result = await cursor.fetchall()
             print(" All Users:")
             for row in result:
-                print(row)
+                print(dict(row))
             return result
 
 
 # Async function to fetch users older than 40
-async def async_fetch_older_users(pool):
-    async with pool.acquire() as conn:
-        async with conn.cursor(aiomysql.DictCursor) as cur:
-            await cur.execute("SELECT * FROM users WHERE age > %s;", (40,))
-            result = await cur.fetchall()
+async def async_fetch_older_users():
+    async with aiosqlite.connect("ALX_prodev.db") as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM users WHERE age > ?;", (40,)) as cursor:
+            result = await cursor.fetchall()
             print("\n Users older than 40:")
             for row in result:
-                print(row)
+                print(dict(row))
             return result
 
 
 # Run both queries concurrently
 async def fetch_concurrently():
-    pool = await aiomysql.create_pool(
-        host="localhost",
-        user="root",
-        password="mypassword",
-        db="ALX_prodev",
-        port=3306
+    results = await asyncio.gather(
+        async_fetch_users(),
+        async_fetch_older_users()
     )
-
-    async with pool:
-        results = await asyncio.gather(
-            async_fetch_users(pool),
-            async_fetch_older_users(pool)
-        )
     return results
 
 
