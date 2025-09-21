@@ -348,3 +348,22 @@ class TestMemoize(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+import subprocess
+
+
+class TestCodeStyle(unittest.TestCase):
+    """Tests to ensure code follows pycodestyle guidelines."""
+
+    def test_pep8_conformance(self) -> None:
+        """Test that all Python files conform to PEP8 (pycodestyle)."""
+        result = subprocess.run(
+            ["pycodestyle", "--max-line-length=79", "utils.py", "test_utils.py"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        self.assertEqual(
+            result.returncode,
+            0,
+            msg=f"pycodestyle violations:\n{result.stdout}"
+        )
