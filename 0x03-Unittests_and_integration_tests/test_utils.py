@@ -9,7 +9,7 @@ It focuses on verifying the correct behavior of access_nested_map.
 import unittest
 from unittest.mock import patch, Mock
 from typing import Any, Mapping, Sequence
-from parameterized import parameterized  # used for parameterized testing
+from parameterized import parameterized  #used for parameterized testing
 import subprocess
 
 from utils import access_nested_map, get_json, memoize
@@ -80,6 +80,7 @@ if __name__ == "__main__":
 class TestAccessNestedMap(unittest.TestCase):
     """Tests for the access_nested_map function."""
 
+   
     @parameterized.expand([
         ({"a": 1}, ("a",), 1),
         ({"a": {"b": 2}}, ("a",), {"b": 2}),
@@ -302,12 +303,14 @@ class TestAccessNestedMap(unittest.TestCase):
 class TestGetJson(unittest.TestCase):
     """Unit tests for the get_json function."""
 
-    @parameterized.expand([
+
+@parameterized.expand([
         ("http://example.com", {"payload": True}),
         ("http://holberton.io", {"payload": False}),
     ])
-    @patch("utils.requests.get")
-    def test_get_json(self, test_url, test_payload, mock_get):
+
+@patch("utils.requests.get")
+def test_get_json(self, test_url, test_payload, mock_get):
         """Test get_json returns expected payload with mocked requests."""
         mock_resp = Mock()
         mock_resp.json.return_value = test_payload
@@ -348,6 +351,7 @@ class TestMemoize(unittest.TestCase):
 class TestCodeStyle(unittest.TestCase):
     """Tests to ensure code follows pycodestyle guidelines."""
 
+    
     def test_pep8_conformance(self):
         """Test that all project files conform to PEP8 (pycodestyle)."""
         result = subprocess.run(
@@ -357,6 +361,8 @@ class TestCodeStyle(unittest.TestCase):
             stderr=subprocess.PIPE,
             text=True
         )
+       
+       
         self.assertEqual(
             result.returncode,
             0,
