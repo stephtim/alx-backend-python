@@ -9,7 +9,7 @@ It focuses on verifying the correct behavior of access_nested_map.
 import unittest
 from unittest.mock import patch, Mock
 from typing import Any, Mapping, Sequence
-from parameterized import parameterized  #used for parameterized testing
+from parameterized import parameterized  # used for parameterized testing
 import subprocess
 
 from utils import access_nested_map, get_json, memoize
@@ -20,7 +20,6 @@ class TestAccessNestedMap(unittest.TestCase):
     TestAccessNestedMap contains test cases for the access_nested_map
     function to ensure it correctly retrieves values from nested maps.
     """
-
     @parameterized.expand([
         ({"a": 1}, ("a",), 1),
         ({"a": {"b": 2}}, ("a",), {"b": 2}),
@@ -115,7 +114,6 @@ class TestAccessNestedMap(unittest.TestCase):
             msg=f"\n- [Got]\n{str(cm.exception)}\n\n"
                 f"[Expected]\n{expected_message}\n"
         )
-
 class TestGetJson(unittest.TestCase):
     """Tests for the get_json function."""
 
@@ -123,7 +121,7 @@ class TestGetJson(unittest.TestCase):
         ("http://example.com", {"payload": True}),
         ("http://holberton.io", {"payload": False}),
     ])
-    def test_get_json(self,
+    def  test_get_json(self,
                       test_url: str,
                       test_payload: dict) -> None:
         """Test get_json returns expected result with mocked requests."""
@@ -268,7 +266,6 @@ class TestGetJson(unittest.TestCase):
             mock_get.return_value = mock_response
 
             result = get_json(test_url)
-
             self.assertEqual(
                 result,
                 test_payload,
@@ -372,3 +369,4 @@ class TestCodeStyle(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
