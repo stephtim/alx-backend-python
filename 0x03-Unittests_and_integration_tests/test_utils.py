@@ -58,6 +58,7 @@ class TestAccessNestedMap(unittest.TestCase):
         """Test access_nested_map returns the expected value."""
         self.assertEqual(access_nested_map(nested_map, path), expected)
 
+   
     @parameterized.expand([
         ({}, ("a",), "'a'"),
         ({"a": 1}, ("a", "b"), "'b'"),
@@ -76,8 +77,6 @@ if __name__ == "__main__":
     unittest.main()
 
 
-
-
 class TestAccessNestedMap(unittest.TestCase):
     """Tests for the access_nested_map function."""
 
@@ -115,7 +114,6 @@ class TestAccessNestedMap(unittest.TestCase):
             msg=f"\n- [Got]\n{str(cm.exception)}\n\n"
                 f"[Expected]\n{expected_message}\n"
         )
-
 
 class TestGetJson(unittest.TestCase):
     """Tests for the get_json function."""
@@ -186,7 +184,6 @@ class TestAccessNestedMap(unittest.TestCase):
                 f"[Expected]\n{expected_message}\n"
         )
 
-
 class TestGetJson(unittest.TestCase):
     """Tests for the get_json function."""
 
@@ -212,8 +209,6 @@ class TestGetJson(unittest.TestCase):
                     f"[Expected]\n{test_payload}\n"
             )
             mock_get.assert_called_once_with(test_url)
-
-
 
 
 class TestAccessNestedMap(unittest.TestCase):
