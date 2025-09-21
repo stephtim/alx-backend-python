@@ -78,16 +78,6 @@ if __name__ == "__main__":
 
 
 
-#!/usr/bin/env python3
-"""Unit tests for utils.py module.
-"""
-
-import unittest
-from unittest.mock import patch, Mock
-from parameterized import parameterized
-from utils import access_nested_map, get_json
-
-
 class TestAccessNestedMap(unittest.TestCase):
     """Tests for the access_nested_map function."""
 
@@ -157,15 +147,6 @@ class TestGetJson(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main()
 
-#!/usr/bin/env python3
-"""Unit tests for utils.py module.
-"""
-
-import unittest
-from unittest.mock import patch, Mock
-from parameterized import parameterized
-from utils import access_nested_map, get_json, memoize
-
 
 class TestAccessNestedMap(unittest.TestCase):
     """Tests for the access_nested_map function."""
@@ -233,14 +214,6 @@ class TestGetJson(unittest.TestCase):
             mock_get.assert_called_once_with(test_url)
 
 
-#!/usr/bin/env python3
-"""Unit tests for utils.py module.
-"""
-
-import unittest
-from unittest.mock import patch, Mock
-from parameterized import parameterized
-from utils import access_nested_map, get_json, memoize
 
 
 class TestAccessNestedMap(unittest.TestCase):
@@ -307,21 +280,6 @@ class TestGetJson(unittest.TestCase):
                     f"[Expected]\n{test_payload}\n"
             )
             mock_get.assert_called_once_with(test_url)
-
-
-#!/usr/bin/env python3
-"""
-Unit tests for utils.py module.
-Covers access_nested_map, get_json, and memoize functionality.
-"""
-
-import unittest
-from unittest.mock import patch, Mock
-from parameterized import parameterized
-import subprocess
-
-from utils import access_nested_map, get_json, memoize
-
 
 class TestAccessNestedMap(unittest.TestCase):
     """Unit tests for the access_nested_map function."""
