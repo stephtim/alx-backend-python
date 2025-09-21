@@ -77,6 +77,13 @@ if __name__ == "__main__":
 """
 
 
+#!/usr/bin/env python3
+"""Unit tests for utils.py module.
+"""
+
+
+
+
 class TestAccessNestedMap(unittest.TestCase):
     """Tests for the access_nested_map function."""
 
@@ -90,7 +97,12 @@ class TestAccessNestedMap(unittest.TestCase):
                                path: tuple,
                                expected: object) -> None:
         """Test access_nested_map returns the expected value."""
-        self.assertEqual(access_nested_map(nested_map, path), expected)
+        self.assertEqual(
+            access_nested_map(nested_map, path),
+            expected,
+            msg=f"\n- [Got]\n{access_nested_map(nested_map, path)}\n\n"
+                f"[Expected]\n{expected}\n"
+        )
 
     @parameterized.expand([
         ({}, ("a",), "'a'"),
@@ -103,7 +115,12 @@ class TestAccessNestedMap(unittest.TestCase):
         """Test access_nested_map raises KeyError with correct message."""
         with self.assertRaises(KeyError) as cm:
             access_nested_map(nested_map, path)
-        self.assertEqual(str(cm.exception), expected_message)
+        self.assertEqual(
+            str(cm.exception),
+            expected_message,
+            msg=f"\n- [Got]\n{str(cm.exception)}\n\n"
+                f"[Expected]\n{expected_message}\n"
+        )
 
 
 if __name__ == "__main__":
