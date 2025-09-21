@@ -75,11 +75,9 @@ class TestAccessNestedMap(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main()
 
-
 class TestAccessNestedMap(unittest.TestCase):
     """Tests for the access_nested_map function."""
 
-   
     @parameterized.expand([
         ({"a": 1}, ("a",), 1),
         ({"a": {"b": 2}}, ("a",), {"b": 2}),
@@ -300,7 +298,6 @@ class TestAccessNestedMap(unittest.TestCase):
 class TestGetJson(unittest.TestCase):
     """Unit tests for the get_json function."""
 
-
 @parameterized.expand([
         ("http://example.com", {"payload": True}),
         ("http://holberton.io", {"payload": False}),
@@ -348,7 +345,6 @@ class TestMemoize(unittest.TestCase):
 class TestCodeStyle(unittest.TestCase):
     """Tests to ensure code follows pycodestyle guidelines."""
 
-    
     def test_pep8_conformance(self):
         """Test that all project files conform to PEP8 (pycodestyle)."""
         result = subprocess.run(
@@ -359,7 +355,6 @@ class TestCodeStyle(unittest.TestCase):
             text=True
         )
        
-       
         self.assertEqual(
             result.returncode,
             0,
@@ -369,4 +364,3 @@ class TestCodeStyle(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
