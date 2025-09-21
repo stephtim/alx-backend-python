@@ -7,11 +7,13 @@ It focuses on verifying the correct behavior of access_nested_map.
 """
 
 import unittest
+from unittest.mock import patch, Mock
 from typing import Any, Mapping, Sequence
-from parameterized import parameterized
-from utils import access_nested_map
+from parameterized import parameterized  # used for parameterized testing
 import subprocess
+
 from utils import access_nested_map, get_json, memoize
+
 
 class TestAccessNestedMap(unittest.TestCase):
     """
