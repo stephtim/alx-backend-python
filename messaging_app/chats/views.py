@@ -2,7 +2,7 @@
 # Create your views here.
 # chats/views.py
 #!/usr/bin/env python3
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions,  status,  filters
 from django.contrib.auth.models import User
 from .models import Conversation, Message
 from .serializers import UserSerializer, ConversationSerializer, MessageSerializer
