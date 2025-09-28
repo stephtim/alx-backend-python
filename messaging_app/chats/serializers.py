@@ -1,20 +1,37 @@
 # chats/serializers.py
+#!/usr/bin/env python3
+from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import User, Conversation, Message
+from .models import Conversation, Message
 
 
 class UserSerializer(serializers.ModelSerializer):
+    # Example: explicitly include username with CharField
+    username = serializers.CharField(required=True, max_length=150)
+
     class Meta:
         model = User
-        fields = ["user_id", "first_name", "last_name", "email", "phone_number", "role"]
+        fields = ['id', 'username', 'email']
 
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True)
+    # Example: custom formatting of timestamp using SerializerMethodField
+    sent_at_human = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
-        fields = ["message_id", "sender", "message_body", "sent_at"]
+        fields = ['id', 'sender', 'content', 'sent_at', 'sent_at_human']
+
+    def get_sent_at_human(self, obj):
+        # human-friendly representation of timestamp
+        return obj.sent_at.strftime("%Y-%m-%d %H:%M:%S")
+
+    def validate_content(self, value):
+        # Example validation using ValidationError
+        if not value.strip():
+            raise serializers.ValidationError("Message content cannot be empty.")
+        return value
 
 
 class ConversationSerializer(serializers.ModelSerializer):
@@ -23,45 +40,4 @@ class ConversationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Conversation
-        fields = ["conversation_id", "participants", "messages", "created_at"]
-
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = [
-            "user_id",
-            "first_name",
-            "last_name",
-            "email",
-            "phone_number",
-            "role",
-            "created_at",
-        ]
-        read_only_fields = ["user_id", "created_at"]
-
-class MessageSerializer(serializers.ModelSerializer):
-    sender = UserSerializer(read_only=True)
-
-    class Meta:
-        model = Message
-        fields = [
-            "message_id",
-            "sender",
-            "message_body",
-            "sent_at",
-        ]
-        read_only_fields = ["message_id", "sent_at"]
-
-class ConversationSerializer(serializers.ModelSerializer):
-    participants = UserSerializer(many=True, read_only=True)
-    messages = MessageSerializer(many=True, read_only=True, source="message_set")
-
-    class Meta:
-        model = Conversation
-        fields = [
-            "conversation_id",
-            "participants",
-            "messages",
-            "created_at",
-        ]
-        read_only_fields = ["conversation_id", "created_at"]
+        fields = ['id', 'title', 'participants', 'messages']
