@@ -43,8 +43,8 @@ class TestGithubOrgClient(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+   
 
-    #!/usr/bin/env python3
 """
 This module contains unit tests for the GithubOrgClient class,
 covering the _public_repos_url property and the has_license method.
