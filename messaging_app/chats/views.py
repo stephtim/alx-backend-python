@@ -42,3 +42,28 @@ class MessageViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Ensure sender is always the logged-in user
         serializer.save(sender=self.request.user)
+class ConversationViewSet(viewsets.ModelViewSet):
+    queryset = Conversation.objects.all()
+    serializer_class = ConversationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # Only conversations where the user is a participant
+        return Conversation.objects.filter(participants=self.request.user)
+
+    def perform_create(self, serializer):
+        conversation = serializer.save()
+        conversation.participants.add(self.request.user)
+
+
+class MessageViewSet(viewsets.ModelViewSet):
+    queryset = Message.objects.all()
+    serializer_class = MessageSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # Only messages from conversations where the user participates
+        return Message.objects.filter(conversation__participants=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(sender=self.request.user)
