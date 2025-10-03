@@ -1,10 +1,13 @@
 # chats/signals.py
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from django.db import transaction
 
 from .models import Message, Notification
 
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
+from django.db import transaction
+from django.utils import timezone
+
+from .models import Message, MessageHistory
 
 @receiver(post_save, sender=Message)
 def create_message_notification(sender, instance, created, **kwargs):
@@ -27,3 +30,40 @@ def create_message_notification(sender, instance, created, **kwargs):
         )
 
     transaction.on_commit(_create_notification)
+
+@receiver(pre_save, sender=Message)
+def log_message_history(sender, instance, **kwargs):
+    """
+    Before a Message is saved, if the content changed, record the old content in MessageHistory.
+    We schedule creation with transaction.on_commit so history is not created if the outer
+    transaction rolls back.
+    NOTE: If you want the history to record WHO edited, set `instance._editor = request.user`
+    in your update view before calling save().
+    """
+    # only consider updates to existing messages
+    if not instance.pk:
+        return
+
+    try:
+        old = Message.objects.get(pk=instance.pk)
+    except Message.DoesNotExist:
+        return
+
+    # nothing changed -> do nothing
+    if old.content == instance.content:
+        return
+
+    # capture values for closure (avoid referencing instance after commit)
+    old_content = old.content
+    prev_edit_count = old.edit_count or 0
+    editor = getattr(instance, '_editor', None) or getattr(instance, 'edited_by', None)
+
+    def _create_history():
+        # compute next version (count is safe here because on_commit runs after commit)
+        prev_count = MessageHistory.objects.filter(message_id=instance.pk).count()
+        MessageHistory.objects.create(
+            message_id=instance.pk,
+            old_content=old_content,
+            edited_by=editor if (hasattr(editor, 'pk') or editor is None) else None,
+            version=prev_count + 1
+        )

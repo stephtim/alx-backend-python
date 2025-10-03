@@ -1,78 +1,64 @@
 #!/usr/bin/env python3
-from rest_framework import viewsets, permissions, status, filters as drf_filters
-from rest_framework.response import Response
+
+from rest_framework import viewsets, permissions
+from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
-from django.contrib.auth.models import User
-from .models import Conversation, Message
-from .serializers import UserSerializer, ConversationSerializer, MessageSerializer
-from .permissions import IsParticipantOfConversation
-from django_filters.rest_framework import DjangoFilterBackend
-from .filters import MessageFilter, ConversationFilter
-from .pagination import MessagePagination  # optional; global PAGE_SIZE also works
+from rest_framework.response import Response
+
+from .models import Message
+from .serializers import MessageSerializer, MessageHistorySerializer
 
 
-class ConversationViewSet(viewsets.ModelViewSet):
-    queryset = Conversation.objects.all()
-    serializer_class = ConversationSerializer
-    permission_classes = [IsParticipantOfConversation]
-    filter_backends = [DjangoFilterBackend, drf_filters.SearchFilter, drf_filters.OrderingFilter]
-    filterset_class = ConversationFilter
-    search_fields = ['title', 'participants__username']
-    ordering_fields = ['id']
+class IsParticipant(permissions.BasePermission):
+    """
+    Custom permission: only allow participants (sender or receiver) to view a message.
+    """
 
-    def get_queryset(self):
-        # Only conversations where the user is a participant
-        return Conversation.objects.filter(participants=self.request.user)
+    def has_object_permission(self, request, view, obj):
+        return obj.sender == request.user or obj.receiver == request.user
 
 
 class MessageViewSet(viewsets.ModelViewSet):
+    """
+    Handles CRUD operations for messages.
+    - List messages for current user
+    - Create new messages
+    - Update message content (edits trigger pre_save signal)
+    - Retrieve message history
+    """
     queryset = Message.objects.all()
     serializer_class = MessageSerializer
-    permission_classes = [IsParticipantOfConversation]
-    # Filtering, searching and ordering
-    filter_backends = [DjangoFilterBackend, drf_filters.SearchFilter, drf_filters.OrderingFilter]
-    filterset_class = MessageFilter
-    search_fields = ['content', 'sender__username']
-    ordering_fields = ['sent_at', 'id']
-    # Pagination: will use global PageNumberPagination (PAGE_SIZE=20). 
-    # To explicitly use the local paginator, uncomment the line below:
-    pagination_class = MessagePagination
+    permission_classes = [permissions.IsAuthenticated, IsParticipant]
 
     def get_queryset(self):
+        user = self.request.user
+        # user can see messages they sent or received
+        return Message.objects.filter(sender=user) | Message.objects.filter(receiver=user)
+
+    def perform_update(self, serializer):
         """
-        If nested route /conversations/{conversation_id}/messages/ is used,
-        filter to that conversation after verifying the user is a participant.
-        Otherwise filter messages to conversations the user participates in.
+        Called before saving a message update.
+        Sets _editor so the pre_save signal can log the old content and who edited.
         """
-        qs = Message.objects.all()
-        conversation_id = self.kwargs.get("conversation_id")
+        instance = serializer.instance
 
-        if conversation_id:
-            try:
-                conversation = Conversation.objects.get(id=conversation_id)
-            except Conversation.DoesNotExist:
-                return Message.objects.none()
+        # Only the sender can edit
+        if self.request.user != instance.sender:
+            raise PermissionDenied("You are not allowed to edit this message.")
 
-            # ensure the requester is a conversation participant
-            if self.request.user not in conversation.participants.all():
-                raise PermissionDenied(detail="You are not a participant of this conversation.")
+        # Step 6: attach editor info so signal can use it
+        serializer.instance._editor = self.request.user
 
-            qs = qs.filter(conversation=conversation)
+        # Saving triggers pre_save signal → MessageHistory entry created
+        serializer.save()
 
-        # always narrow down to messages in conversations the user participates in
-        return qs.filter(conversation__participants=self.request.user).distinct()
-
-    def perform_create(self, serializer):
-        conversation_id = self.kwargs.get("conversation_id")
-        if not conversation_id:
-            raise PermissionDenied(detail="Conversation id is required to create a message.", code=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            conversation = Conversation.objects.get(id=conversation_id)
-        except Conversation.DoesNotExist:
-            raise PermissionDenied(detail="Conversation does not exist.", code=status.HTTP_404_NOT_FOUND)
-
-        if self.request.user not in conversation.participants.all():
-            raise PermissionDenied(detail="You are not a participant of this conversation.")
-
-        serializer.save(sender=self.request.user, conversation=conversation)
+    @action(detail=True, methods=['get'], url_path='history')
+    def history(self, request, pk=None):
+        """
+        GET /api/messages/<id>/history/
+        Returns all previous versions of the message.
+        """
+        message = self.get_object()
+        histories = message.histories.order_by('-version')
+        serializer = MessageHistorySerializer(histories, many=True)
+        return Response(serializer.data)

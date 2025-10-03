@@ -41,3 +41,10 @@ class ConversationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Conversation
         fields = ['id', 'title', 'participants', 'messages']
+
+class MessageHistorySerializer(serializers.ModelSerializer):
+    edited_by = serializers.StringRelatedField()  # or use a UserSerializer
+
+    class Meta:
+        model = MessageHistory
+        fields = ('id', 'version', 'old_content', 'edited_by', 'edited_at')
