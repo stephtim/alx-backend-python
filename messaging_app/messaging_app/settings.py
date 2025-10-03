@@ -143,6 +143,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'chats.apps.ChatsConfig',
     'django.contrib.staticfiles',
     'rest_framework',
     'django_filters', 
