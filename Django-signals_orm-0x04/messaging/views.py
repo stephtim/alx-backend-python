@@ -3,12 +3,21 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django.views.decorators.cache import cache_page
+from django.utils.decorators import method_decorator
 
 from .models import Message, Notification
 from .serializers import MessageSerializer, NotificationSerializer
 
 class MessageViewSet(viewsets.ModelViewSet):
     serializer_class = MessageSerializer
+
+    @method_decorator(cache_page(60))
+    def list(self, request, *args, **kwargs):
+        """
+        Cache the list view for 60 seconds.
+        """
+        return super().list(request, *args, **kwargs)
 
     def get_queryset(self):
         # Example: show only messages received by the authenticated user
