@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.contrib.auth.models import PermissionsMixin
 import uuid
 from messaging_app.messaging_app import settings
+from Django-signals_orm-0x04.messaging.managers import UnreadMessagesManager
 
 
 class UserManager(BaseUserManager):
@@ -126,10 +127,6 @@ class Conversation(models.Model):
         # Short representation
         return f"Conversation {self.conversation_id}"
 
-
-class UnreadMessagesManager(models.Manager):
-    def for_user(self, user):
-        return self.get_queryset().filter(receiver=user, read=False)
 
 class Message(models.Model):
     sender = models.ForeignKey(

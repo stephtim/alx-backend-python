@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from rest_framework import viewsets, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -17,6 +17,13 @@ class MessageViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Ensure sender is always the authenticated user
         serializer.save(sender=self.request.user, receiver=self.request.data.get('receiver'))
+
+    @action(detail=False, methods=['get'], url_path='unread')
+    def unread_messages(self, request):
+        # Use the custom manager to get unread messages for the user, optimized with .only()
+        unread_qs = Message.unread.for_user(request.user).only('id', 'content', 'timestamp', 'sender_id', 'receiver_id')
+        serializer = self.get_serializer(unread_qs, many=True)
+        return Response(serializer.data)
 
 
 class NotificationViewSet(viewsets.ModelViewSet):
