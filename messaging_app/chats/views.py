@@ -1,81 +1,120 @@
 #!/usr/bin/env python3
 
-from rest_framework import viewsets, permissions
-from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
+#!/usr/bin/env python3
+from rest_framework import viewsets, status
+from rest_framework.decorators import api_view, permission_classes, action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
 
-from .models import Message, Notification
-from .serializers import MessageSerializer, MessageHistorySerializer
+from django.db.models import Q, Prefetch
 
-
-class IsParticipant(permissions.BasePermission):
-    """
-    Custom permission: only allow participants (sender or receiver) to view a message.
-    """
-
-    def has_object_permission(self, request, view, obj):
-        return obj.sender == request.user or obj.receiver == request.user
-
+from .models import Message, MessageHistory, Notification
+from .serializers import (
+    MessageSerializer, ThreadedMessageSerializer, MessageHistorySerializer,
+    UserSimpleSerializer
+)
 
 class MessageViewSet(viewsets.ModelViewSet):
-    """
-    Handles CRUD operations for messages.
-    - List messages for current user
-    - Create new messages
-    - Update message content (edits trigger pre_save signal)
-    - Retrieve message history
-    """
-    queryset = Message.objects.all()
+    queryset = Message.objects.all().select_related('sender', 'receiver', 'parent_message')
     serializer_class = MessageSerializer
-    permission_classes = [permissions.IsAuthenticated, IsParticipant]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
-        # user can see messages they sent or received
-        return Message.objects.filter(sender=user) | Message.objects.filter(receiver=user)
+        # default: messages user sent or received
+        return Message.objects.filter(Q(sender=user) | Q(receiver=user)).select_related('sender','receiver','parent_message')
+
+    def perform_create(self, serializer):
+        # attach sender automatically
+        serializer.save(sender=self.request.user)
 
     def perform_update(self, serializer):
-        """
-        Called before saving a message update.
-        Sets _editor so the pre_save signal can log the old content and who edited.
-        """
         instance = serializer.instance
-
-        # Only the sender can edit
+        # only sender allowed to edit
         if self.request.user != instance.sender:
-            raise PermissionDenied("You are not allowed to edit this message.")
-
-        # Step 6: attach editor info so signal can use it
+            raise PermissionDenied("Only sender can edit the message.")
+        # attach editor for signal to capture
         serializer.instance._editor = self.request.user
-
-        # Saving triggers pre_save signal → MessageHistory entry created
         serializer.save()
+
+    @action(detail=False, methods=['get'], url_path='thread-with/(?P<other_user_id>[^/.]+)')
+    def thread_with(self, request, other_user_id=None):
+        """
+        GET /api/messages/thread-with/<other_user_id>/
+        Returns a threaded view of messages between request.user and other_user_id.
+        - Fetches all messages between the two users with select_related/prefetch to avoid N+1.
+        - Builds the reply tree in-memory and returns nested JSON.
+        """
+        user = request.user
+        try:
+            other_id = int(other_user_id)
+        except (ValueError, TypeError):
+            return Response({"detail": "Invalid user id"}, status=status.HTTP_400_BAD_REQUEST)
+
+        base_q = Message.objects.filter(
+            (Q(sender_id=user.id) & Q(receiver_id=other_id)) |
+            (Q(sender_id=other_id) & Q(receiver_id=user.id))
+        ).select_related('sender', 'receiver', 'parent_message').order_by('timestamp')
+
+        # prefetch histories for convenience (not required for threading)
+        base_q = base_q.prefetch_related(Prefetch('histories', queryset=MessageHistory.objects.select_related('edited_by')))
+
+        messages = list(base_q)
+
+        # Build mapping id -> node and children lists
+        nodes = {}
+        children_map = {}
+        for m in messages:
+            nodes[m.id] = {
+                'id': m.id,
+                'sender': {'id': m.sender.id, 'username': m.sender.username},
+                'receiver': {'id': m.receiver.id, 'username': m.receiver.username},
+                'content': m.content,
+                'timestamp': m.timestamp,
+                'parent_message': m.parent_message_id,
+                'edited': m.edited,
+                'edit_count': m.edit_count,
+                'replies': []
+            }
+            children_map.setdefault(m.parent_message_id, []).append(m.id)
+
+        # recursively attach children — iterative approach avoids recursion limits
+        def build_tree(root_ids):
+            result = []
+            stack = list(root_ids)[::-1]  # process in timestamp order (since messages ordered)
+            while stack:
+                msg_id = stack.pop()
+                node = nodes[msg_id]
+                # attach children
+                child_ids = children_map.get(msg_id, [])
+                # ensure children are sorted by timestamp (they are from base_q order)
+                node['replies'] = [nodes[cid] for cid in child_ids]
+                # push children onto stack to ensure their replies are processed
+                for cid in reversed(child_ids):
+                    stack.append(cid)
+                result.append(node)
+            return result
+
+        # root messages are those with parent_message = None
+        root_ids = [m.id for m in messages if m.parent_message_id is None]
+        threaded = build_tree(root_ids)
+
+        # Validate / serialize with ThreadedMessageSerializer
+        serializer = ThreadedMessageSerializer(threaded, many=True)
+        return Response(serializer.data)
 
     @action(detail=True, methods=['get'], url_path='history')
     def history(self, request, pk=None):
-        """
-        GET /api/messages/<id>/history/
-        Returns all previous versions of the message.
-        """
-        message = self.get_object()
-        histories = message.histories.order_by('-version')
+        msg = self.get_object()
+        histories = msg.histories.select_related('edited_by').order_by('-version')
         serializer = MessageHistorySerializer(histories, many=True)
         return Response(serializer.data)
-
-class NotificationViewSet(viewsets.ModelViewSet):
-    queryset = Notification.objects.all()
-    serializer_class = NotificationSerializer # type: ignore
 
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
-
 def delete_user(request):
-    """
-    DELETE /api/delete-account/
-    Deletes the authenticated user and triggers cleanup.
-    """
     user = request.user
     user.delete()
     return Response({"detail": "Account and related data deleted."}, status=status.HTTP_204_NO_CONTENT)

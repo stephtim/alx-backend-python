@@ -44,3 +44,10 @@ urlpatterns = [
     path('api/', include('chats.urls')),
     path('api/delete-account/', delete_user, name='delete_user'),
 ]
+
+router = DefaultRouter()
+router.register(r'messages', MessageViewSet, basename='message')
+
+urlpatterns = [
+    path('', include(router.urls)),
+]

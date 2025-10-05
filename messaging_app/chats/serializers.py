@@ -4,47 +4,42 @@ from django.contrib.auth.models import User
 from rest_framework import serializers
 from .models import Conversation, Message
 
+User = get_user_model()
 
-class UserSerializer(serializers.ModelSerializer):
-    # Example: explicitly include username with CharField
-    username = serializers.CharField(required=True, max_length=150)
-
+class UserSimpleSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email']
-
-
-class MessageSerializer(serializers.ModelSerializer):
-    sender = UserSerializer(read_only=True)
-    # Example: custom formatting of timestamp using SerializerMethodField
-    sent_at_human = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Message
-        fields = ['id', 'sender', 'content', 'sent_at', 'sent_at_human']
-
-    def get_sent_at_human(self, obj):
-        # human-friendly representation of timestamp
-        return obj.sent_at.strftime("%Y-%m-%d %H:%M:%S")
-
-    def validate_content(self, value):
-        # Example validation using ValidationError
-        if not value.strip():
-            raise serializers.ValidationError("Message content cannot be empty.")
-        return value
-
-
-class ConversationSerializer(serializers.ModelSerializer):
-    participants = UserSerializer(many=True, read_only=True)
-    messages = MessageSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Conversation
-        fields = ['id', 'title', 'participants', 'messages']
+        fields = ('id', 'username')
 
 class MessageHistorySerializer(serializers.ModelSerializer):
-    edited_by = serializers.StringRelatedField()  # or use a UserSerializer
-
+    edited_by = UserSimpleSerializer()
     class Meta:
         model = MessageHistory
         fields = ('id', 'version', 'old_content', 'edited_by', 'edited_at')
+
+class MessageSerializer(serializers.ModelSerializer):
+    sender = UserSimpleSerializer(read_only=True)
+    receiver = UserSimpleSerializer(read_only=True)
+    parent_message = serializers.PrimaryKeyRelatedField(read_only=True)
+    edit_count = serializers.IntegerField(read_only=True)
+    edited = serializers.BooleanField(read_only=True)
+    edited_at = serializers.DateTimeField(read_only=True)
+
+    class Meta:
+        model = Message
+        fields = ('id', 'sender', 'receiver', 'content', 'timestamp',
+                  'parent_message', 'edited', 'edited_at', 'edit_count')
+
+class ThreadedMessageSerializer(serializers.Serializer):
+    """
+    Light-weight serializer for threaded responses. Expects dicts produced by the view.
+    """
+    id = serializers.IntegerField()
+    sender = UserSimpleSerializer()
+    receiver = UserSimpleSerializer()
+    content = serializers.CharField()
+    timestamp = serializers.DateTimeField()
+    parent_message = serializers.IntegerField(allow_null=True)
+    edited = serializers.BooleanField()
+    edit_count = serializers.IntegerField()
+    replies = serializers.ListField(child=serializers.DictField(), default=[])

@@ -45,21 +45,38 @@ class Conversation(models.Model):
 
 class Message(models.Model):
     sender = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sent_messages'
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='sent_messages'
     )
     receiver = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='received_messages'
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='received_messages'
     )
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
+
+    # Threading
+    parent_message = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='replies'
+    )
+
+    # Edit tracking
     edited = models.BooleanField(default=False)
     edited_at = models.DateTimeField(null=True, blank=True)
     edit_count = models.PositiveIntegerField(default=0)
 
     def __str__(self):
-        return f"{self.sender} → {self.receiver}: {self.content[:20]}"
+        parent = f" reply to {self.parent_message_id}" if self.parent_message_id else ""
+        return f"Message {self.pk}{parent} [{self.sender} → {self.receiver}]"
 
-class UserManager(BaseUserManager):
+
+    class UserManager(BaseUserManager):
     """
     Manager for the custom User model. Creates users and superusers.
     """
@@ -202,31 +219,49 @@ class Conversation(models.Model):
    
     class Notification(models.Model):
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notifications'
-    )
-    actor = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True,
-        on_delete=models.SET_NULL, related_name='actor_notifications'
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notifications'
     )
     message = models.ForeignKey(
-        Message, on_delete=models.CASCADE, related_name='notifications'
+        Message,
+        on_delete=models.CASCADE,
+        related_name='notifications'
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='actor_notifications'
     )
     verb = models.CharField(max_length=255, default='sent you a message')
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Notification for {self.user}"
+        return f"Notif {self.pk} → {self.user}"
     
     class MessageHistory(models.Model):
     message = models.ForeignKey(
-        Message, on_delete=models.CASCADE, related_name='histories'
+        Message,
+        on_delete=models.CASCADE,
+        related_name='histories'
     )
     old_content = models.TextField()
     edited_at = models.DateTimeField(auto_now_add=True)
     edited_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL, null=True, blank=True,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='message_edits'
     )
     version = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ['-version']
+        unique_together = ('message', 'version')
+
+    def __str__(self):
+        return f"History v{self.version} of Message {self.message_id}"

@@ -80,3 +80,73 @@ def cleanup_user_related_data(sender, instance, **kwargs):
     Message.objects.filter(receiver=instance).delete()
     Notification.objects.filter(user=instance).delete()
     MessageHistory.objects.filter(edited_by=instance).delete()
+
+    @receiver(pre_save, sender=Message)
+def log_message_history(sender, instance, **kwargs):
+    # Only for updates (existing messages)
+    if not instance.pk:
+        return
+    try:
+        old = Message.objects.get(pk=instance.pk)
+    except Message.DoesNotExist:
+        return
+
+    if old.content == instance.content:
+        return
+
+    old_content = old.content
+    editor = getattr(instance, '_editor', None)
+
+    def _create_history():
+        prev_count = MessageHistory.objects.filter(message_id=instance.pk).count()
+        MessageHistory.objects.create(
+            message_id=instance.pk,
+            old_content=old_content,
+            edited_by=editor if getattr(editor, 'pk', None) else None,
+            version=prev_count + 1
+        )
+
+    transaction.on_commit(_create_history)
+
+    # Update metadata
+    instance.edited = True
+    instance.edited_at = timezone.now()
+    instance.edit_count = (old.edit_count or 0) + 1
+
+# ---------------------
+# Post-save: create a Notification when a new Message is created
+# ---------------------
+@receiver(post_save, sender=Message)
+def create_message_notification(sender, instance, created, **kwargs):
+    if not created:
+        return
+    # avoid notifying self
+    if instance.sender_id == instance.receiver_id:
+        return
+
+    def _create_notification():
+        Notification.objects.create(
+            user=instance.receiver,
+            message=instance,
+            actor=instance.sender,
+            verb='sent you a message'
+        )
+    transaction.on_commit(_create_notification)
+
+# ---------------------
+# Post-delete: clean up leftover relations when a User is deleted
+# ---------------------
+@receiver(post_delete, sender=User)
+def cleanup_user_related_data(sender, instance, **kwargs):
+    """
+    After a User is deleted, remove any leftover related objects:
+    - messages where they were sender or receiver (CASCADE handles most, but ensure)
+    - notifications where they were the user
+    - message histories where they were the editor
+    """
+    # delete messages explicitly (CASCADE would normally do this)
+    Message.objects.filter(sender=instance).delete()
+    Message.objects.filter(receiver=instance).delete()
+
+    Notification.objects.filter(user=instance).delete()
+    MessageHistory.objects.filter(edited_by=instance).delete()
