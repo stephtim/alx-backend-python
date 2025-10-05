@@ -9,6 +9,8 @@ It intentionally does not define models, because all actual models
 """
 
 from django.db import models  # ✅ Required for Django's model discovery mechanism
+# For reference: Message model (with parent_message field) is defined in chats/models.py
+from chats.models import Message  # Message includes parent_message (self-referential FK)
 
 # No models are defined here.
 # All models are located in chats/models.py and imported where needed.
