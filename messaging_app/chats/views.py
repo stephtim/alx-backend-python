@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
-from .models import Message
+from .models import Message, Notification
 from .serializers import MessageSerializer, MessageHistorySerializer
 
 
@@ -62,3 +62,20 @@ class MessageViewSet(viewsets.ModelViewSet):
         histories = message.histories.order_by('-version')
         serializer = MessageHistorySerializer(histories, many=True)
         return Response(serializer.data)
+
+class NotificationViewSet(viewsets.ModelViewSet):
+    queryset = Notification.objects.all()
+    serializer_class = NotificationSerializer # type: ignore
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+
+def delete_user(request):
+    """
+    DELETE /api/delete-account/
+    Deletes the authenticated user and triggers cleanup.
+    """
+    user = request.user
+    user.delete()
+    return Response({"detail": "Account and related data deleted."}, status=status.HTTP_204_NO_CONTENT)

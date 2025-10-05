@@ -9,6 +9,8 @@ from django.utils import timezone
 from django.contrib.auth.models import PermissionsMixin
 import uuid
 
+from messaging_app.messaging_app import settings
+
 
 class User(AbstractBaseUser):
     user_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -42,15 +44,20 @@ class Conversation(models.Model):
 
 
 class Message(models.Model):
-    message_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     sender = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="sent_messages"
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sent_messages'
     )
-    conversation = models.ForeignKey(
-        Conversation, on_delete=models.CASCADE, related_name="messages"
+    receiver = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='received_messages'
     )
-    message_body = models.TextField()
-    sent_at = models.DateTimeField(auto_now_add=True)
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    edited = models.BooleanField(default=False)
+    edited_at = models.DateTimeField(null=True, blank=True)
+    edit_count = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.sender} → {self.receiver}: {self.content[:20]}"
 
 class UserManager(BaseUserManager):
     """
@@ -177,21 +184,7 @@ class Conversation(models.Model):
         # Short representation
         return f"Conversation {self.conversation_id}"
 
-
-class Message(models.Model):
-    """
-    Message model as specified.
-    """
-
-    message_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    conversation = models.ForeignKey(
-        Conversation, related_name="messages", on_delete=models.CASCADE
-    )
-    sender = models.ForeignKey(User, related_name="messages_sent", on_delete=models.CASCADE)
-    message_body = models.TextField()
-    sent_at = models.DateTimeField(default=timezone.now)
-
-    class Meta:
+ class Meta:
         db_table = "messages"
         verbose_name = "message"
         verbose_name_plural = "messages"
@@ -201,5 +194,39 @@ class Message(models.Model):
             models.Index(fields=["conversation"], name="ix_messages_conversation"),
         ]
 
+     ordering = ['-version']
+        unique_together = ('message', 'version')
+
     def __str__(self):
-        return f"Message {self.message_id} by {self.sender.email}"
+        return f"History v{self.version} of Message {self.message.id}"
+   
+    class Notification(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notifications'
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='actor_notifications'
+    )
+    message = models.ForeignKey(
+        Message, on_delete=models.CASCADE, related_name='notifications'
+    )
+    verb = models.CharField(max_length=255, default='sent you a message')
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Notification for {self.user}"
+    
+    class MessageHistory(models.Model):
+    message = models.ForeignKey(
+        Message, on_delete=models.CASCADE, related_name='histories'
+    )
+    old_content = models.TextField()
+    edited_at = models.DateTimeField(auto_now_add=True)
+    edited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='message_edits'
+    )
+    version = models.PositiveIntegerField()

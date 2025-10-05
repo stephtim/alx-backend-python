@@ -40,5 +40,7 @@ router.register(r'messages', MessageViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),  # exposes the API routes
-    ,
+    path('admin/', admin.site.urls),
+    path('api/', include('chats.urls')),
+    path('api/delete-account/', delete_user, name='delete_user'),
 ]

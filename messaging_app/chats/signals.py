@@ -67,3 +67,16 @@ def log_message_history(sender, instance, **kwargs):
             edited_by=editor if (hasattr(editor, 'pk') or editor is None) else None,
             version=prev_count + 1
         )
+
+ User = get_user_model() # type: ignore
+
+@receiver(post_delete, sender=User) # type: ignore
+def cleanup_user_related_data(sender, instance, **kwargs):
+    """
+    After a User is deleted, remove any leftover related objects
+    not already handled by CASCADE (e.g., edited_by links).
+    """
+    Message.objects.filter(sender=instance).delete()
+    Message.objects.filter(receiver=instance).delete()
+    Notification.objects.filter(user=instance).delete()
+    MessageHistory.objects.filter(edited_by=instance).delete()
