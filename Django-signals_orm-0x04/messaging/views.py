@@ -8,8 +8,15 @@ from .models import Message, Notification
 from .serializers import MessageSerializer, NotificationSerializer
 
 class MessageViewSet(viewsets.ModelViewSet):
-    queryset = Message.objects.all()
     serializer_class = MessageSerializer
+
+    def get_queryset(self):
+        # Example: show only messages received by the authenticated user
+        return Message.objects.filter(receiver=self.request.user).select_related('sender', 'receiver')
+
+    def perform_create(self, serializer):
+        # Ensure sender is always the authenticated user
+        serializer.save(sender=self.request.user, receiver=self.request.data.get('receiver'))
 
 
 class NotificationViewSet(viewsets.ModelViewSet):
