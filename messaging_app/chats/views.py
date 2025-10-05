@@ -9,7 +9,7 @@ from rest_framework.exceptions import PermissionDenied
 
 from django.db.models import Q, Prefetch
 
-from .models import Message, MessageHistory, Notification
+from chats.models import Message, MessageHistory, Notification
 from .serializers import (
     MessageSerializer, ThreadedMessageSerializer, MessageHistorySerializer,
     UserSimpleSerializer
