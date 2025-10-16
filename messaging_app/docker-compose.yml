@@ -11,6 +11,7 @@ services:
     restart: always
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_DB: ${MYSQL_DB}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -23,8 +24,8 @@ services:
     build: .
     container_name: messaging_web
     command: >
-      sh -c "python manage.py migrate &&
-             command: python manage.py runserver 0.0.0.0:8000"
+      sh -c "python3 manage.py migrate &&
+             command: python3 manage.py runserver 0.0.0.0:8000"
 
   volumes:
       - .:/app
