@@ -2,3 +2,4 @@ Django>=5.2.6
 djangorestframework>=3.15.0
 djangorestframework-simplejwt>=6.1.0
 django-filter>=23.2
+mysqlclient>=2.2.0
