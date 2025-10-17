@@ -1,5 +1,8 @@
-#!/usr/bin/env python3
+from rest_framework import viewsets
+from .models import User, Conversation, Message, MessageHistory
+from .serializers import UserSerializer, ConversationSerializer, MessageSerializer, MessageHistorySerializer
 
+<<<<<<< HEAD
 #!/usr/bin/env python3
 from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, permission_classes, action
@@ -9,23 +12,24 @@ from rest_framework.exceptions import PermissionDenied
 from django.shortcuts import render
 from .models import Conversation, Message
 from .serializers import ConversationSerializer, MessageSerializer
+=======
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+>>>>>>> 6e94a15ad0e04ccb334ae164477d76e6f22c87ac
 
-from django.db.models import Q, Prefetch
-
-from chats.models import Message, MessageHistory, Notification
-from .serializers import (
-    MessageSerializer, ThreadedMessageSerializer, MessageHistorySerializer,
-    UserSimpleSerializer
-)
+class ConversationViewSet(viewsets.ModelViewSet):
+    queryset = Conversation.objects.all()
+    serializer_class = ConversationSerializer
 
 def home(request):
     return render(request, 'index.html')
 
 class MessageViewSet(viewsets.ModelViewSet):
-    queryset = Message.objects.all().select_related('sender', 'receiver', 'parent_message')
+    queryset = Message.objects.all()
     serializer_class = MessageSerializer
-    permission_classes = [IsAuthenticated]
 
+<<<<<<< HEAD
     def get_queryset(self):
         user = self.request.user
         # default: messages user sent or received
@@ -128,3 +132,8 @@ def delete_user(request):
 class ConversationViewSet(viewsets.ModelViewSet):
     queryset = Conversation.objects.all()
     serializer_class = ConversationSerializer
+=======
+class MessageHistoryViewSet(viewsets.ModelViewSet):
+    queryset = MessageHistory.objects.all()
+    serializer_class = MessageHistorySerializer
+>>>>>>> 6e94a15ad0e04ccb334ae164477d76e6f22c87ac

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 """
 Django settings for mesaging_app project.
 
@@ -10,14 +11,23 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+=======
+import os
+>>>>>>> 6e94a15ad0e04ccb334ae164477d76e6f22c87ac
 from pathlib import Path
 from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+<<<<<<< HEAD
 SECRET_KEY = 'django-insecure-i$s$qqt1%(5ev%i$4(at_kqwmtak8t%t=2+pp6k_gpn+#k&t=2'
 DEBUG = True
 ALLOWED_HOSTS = []
+=======
+SECRET_KEY = 'django-insecure-secret-key'
+DEBUG = False
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+>>>>>>> 6e94a15ad0e04ccb334ae164477d76e6f22c87ac
 
 INSTALLED_APPS = [
     # Django default apps
@@ -27,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+<<<<<<< HEAD
 
     # Third-party apps
     'rest_framework',
@@ -38,6 +49,13 @@ INSTALLED_APPS = [
 ]
 
 # If you have a custom User model inside chats/models.py
+=======
+    'rest_framework',
+    'django_filters',
+    'chats.apps.ChatsConfig',
+]
+
+>>>>>>> 6e94a15ad0e04ccb334ae164477d76e6f22c87ac
 AUTH_USER_MODEL = 'chats.User'
 
 # -------------------------------------------------------------------
@@ -53,9 +71,12 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+<<<<<<< HEAD
 # -------------------------------------------------------------------
 #  URLS & WSGI
 # -------------------------------------------------------------------
+=======
+>>>>>>> 6e94a15ad0e04ccb334ae164477d76e6f22c87ac
 ROOT_URLCONF = 'messaging_app.urls'
 
 TEMPLATES = [
@@ -63,17 +84,32 @@ TEMPLATES = [
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [],
         'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
-        },
+<<<<<<< HEAD
+=======
+        'OPTIONS': {'context_processors': [
+            'django.template.context_processors.debug',
+            'django.template.context_processors.request',
+            'django.contrib.auth.context_processors.auth',
+            'django.contrib.messages.context_processors.messages',
+        ]},
     },
 ]
 
+WSGI_APPLICATION = 'messaging_app.wsgi.application'
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.environ.get('MYSQL_DATABASE'),
+        'USER': os.environ.get('MYSQL_USER'),
+        'PASSWORD': os.environ.get('MYSQL_PASSWORD'),
+        'HOST': os.environ.get('MYSQL_HOST', 'db'),
+        'PORT': os.environ.get('MYSQL_PORT', '3306'),
+>>>>>>> 6e94a15ad0e04ccb334ae164477d76e6f22c87ac
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+
+<<<<<<< HEAD
 WSGI_APPLICATION = 'messaging_app.wsgi.application'
 
 # -------------------------------------------------------------------
@@ -107,10 +143,18 @@ AUTH_PASSWORD_VALIDATORS = [
 # -------------------------------------------------------------------
 # INTERNATIONALIZATION
 # -------------------------------------------------------------------
+=======
+         },
+    }
+}
+
+AUTH_PASSWORD_VALIDATORS = []
+>>>>>>> 6e94a15ad0e04ccb334ae164477d76e6f22c87ac
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
+<<<<<<< HEAD
 
 # -------------------------------------------------------------------
 # STATIC FILES
@@ -157,3 +201,7 @@ CACHES = {
         'LOCATION': 'unique-snowflake',
     }
 }
+=======
+STATIC_URL = '/static/'
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+>>>>>>> 6e94a15ad0e04ccb334ae164477d76e6f22c87ac

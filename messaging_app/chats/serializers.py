@@ -1,38 +1,29 @@
-# chats/serializers.py
-#!/usr/bin/env python3
-from django.contrib.auth.models import User
 from rest_framework import serializers
+<<<<<<< HEAD
 from .models import Conversation, Message
 from django.contrib.auth import get_user_model
 from .models import User, Conversation, Message, MessageHistory
 
+=======
+from .models import User, Conversation, Message, MessageHistory
+>>>>>>> 6e94a15ad0e04ccb334ae164477d76e6f22c87ac
 
-User = get_user_model()
-
-class UserSimpleSerializer(serializers.ModelSerializer):
+class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'username')
+        fields = '__all__'
 
-class MessageHistorySerializer(serializers.ModelSerializer):
-    edited_by = UserSimpleSerializer()
+class ConversationSerializer(serializers.ModelSerializer):
     class Meta:
-        model = MessageHistory
-        fields = ('id', 'version', 'old_content', 'edited_by', 'edited_at')
+        model = Conversation
+        fields = '__all__'
 
 class MessageSerializer(serializers.ModelSerializer):
-    sender = UserSimpleSerializer(read_only=True)
-    receiver = UserSimpleSerializer(read_only=True)
-    parent_message = serializers.PrimaryKeyRelatedField(read_only=True)
-    edit_count = serializers.IntegerField(read_only=True)
-    edited = serializers.BooleanField(read_only=True)
-    edited_at = serializers.DateTimeField(read_only=True)
-
     class Meta:
         model = Message
-        fields = ('id', 'sender', 'receiver', 'content', 'timestamp',
-                  'parent_message', 'edited', 'edited_at', 'edit_count')
+        fields = '__all__'
 
+<<<<<<< HEAD
 class ThreadedMessageSerializer(serializers.Serializer):
     """
     Light-weight serializer for threaded responses. Expects dicts produced by the view.
@@ -51,3 +42,9 @@ class ThreadedMessageSerializer(serializers.Serializer):
         class Meta:
             model = Conversation
             fields = "__all__"
+=======
+class MessageHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MessageHistory
+        fields = '__all__'
+>>>>>>> 6e94a15ad0e04ccb334ae164477d76e6f22c87ac

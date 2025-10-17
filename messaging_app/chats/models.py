@@ -1,4 +1,5 @@
 from django.db import models
+<<<<<<< HEAD
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.utils import timezone
 from django.contrib.auth.models import PermissionsMixin
@@ -104,142 +105,34 @@ class User(AbstractBaseUser, PermissionsMixin):
         super().set_password(raw_password)
         # `self.password` now contains the hashed password string (algorithm$salt$hash)
         self.password_hash = self.password
+=======
+from django.contrib.auth.models import AbstractUser
+>>>>>>> 6e94a15ad0e04ccb334ae164477d76e6f22c87ac
 
+class User(AbstractUser):
+    email = models.EmailField(unique=True)
+    username = None
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = []
 
 class Conversation(models.Model):
-    """
-    Conversation with UUID PK and participants relation.
-    """
-
-    conversation_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    participants = models.ManyToManyField(User, related_name="conversations")
-    created_at = models.DateTimeField(default=timezone.now)
-
-    class Meta:
-        db_table = "conversations"
-        verbose_name = "conversation"
-        verbose_name_plural = "conversations"
-        indexes = [
-            models.Index(fields=["created_at"], name="ix_conversations_created_at"),
-        ]
-
-    def __str__(self):
-        # Short representation
-        return f"Conversation {self.conversation_id}"
-
-
-class Message(models.Model):
-    sender = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='sent_messages'
-    )
-    receiver = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='received_messages'
-    )
-    content = models.TextField()
-    timestamp = models.DateTimeField(auto_now_add=True)
-    parent_message = models.ForeignKey(
-        'self',
-        null=True,
-        blank=True,
-        on_delete=models.CASCADE,
-        related_name='replies'
-    )
-    edited = models.BooleanField(default=False)
-    edited_at = models.DateTimeField(null=True, blank=True)
-    edit_count = models.PositiveIntegerField(default=0)
-    read = models.BooleanField(default=False, db_index=True)
-
-    objects = models.Manager()  # Default manager
-    unread = UnreadMessagesManager()  # Custom manager
-
-    def __str__(self):
-        parent = f" reply to {self.parent_message_id}" if self.parent_message_id else ""
-        return f"Message {self.pk}{parent} [{self.sender} → {self.receiver}]"
-
-    @staticmethod
-    def fetch_threaded_messages(root_message_id):
-        """
-        Recursively fetch all replies to a message and return them in a threaded format.
-        """
-        def get_replies(message):
-            replies = list(message.replies.select_related('sender', 'receiver').prefetch_related('replies'))
-            return [
-                {
-                    'message': reply,
-                    'replies': get_replies(reply)
-                }
-                for reply in replies
-            ]
-        try:
-            root = Message.objects.select_related('sender', 'receiver').prefetch_related('replies').get(pk=root_message_id)
-        except Message.DoesNotExist:
-            return None
-        return {
-            'message': root,
-            'replies': get_replies(root)
-        }
-
-    class Meta:
-        db_table = "messages"
-        verbose_name = "message"
-        verbose_name_plural = "messages"
-        indexes = [
-            models.Index(fields=["timestamp"], name="ix_messages_timestamp"),
-            models.Index(fields=["receiver"], name="ix_messages_receiver"),
-            models.Index(fields=["read"], name="ix_messages_read"),
-        ]
-
-
-class Notification(models.Model):
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='notifications'
-    )
-    message = models.ForeignKey(
-        Message,
-        on_delete=models.CASCADE,
-        related_name='notifications'
-    )
-    actor = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name='actor_notifications'
-    )
-    verb = models.CharField(max_length=255, default='sent you a message')
-    is_read = models.BooleanField(default=False)
+    conversation_id = models.AutoField(primary_key=True)
+    participants = models.ManyToManyField(User, related_name='conversations')
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return f"Notif {self.pk} → {self.user}"
-
+class Message(models.Model):
+    message_id = models.AutoField(primary_key=True)
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE)
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_messages')
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    parent_message = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL)
+    edited = models.BooleanField(default=False)
+    edit_count = models.IntegerField(default=0)
 
 class MessageHistory(models.Model):
-    message = models.ForeignKey(
-        Message,
-        on_delete=models.CASCADE,
-        related_name='histories'
-    )
-    old_content = models.TextField()
+    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='history')
+    version = models.IntegerField(default=1)
+    edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     edited_at = models.DateTimeField(auto_now_add=True)
-    edited_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='message_edits'
-    )
-    version = models.PositiveIntegerField()
-
-    class Meta:
-        ordering = ['-version']
-        unique_together = ('message', 'version')
-
-    def __str__(self):
-        return f"History v{self.version} of Message {self.message_id}"
