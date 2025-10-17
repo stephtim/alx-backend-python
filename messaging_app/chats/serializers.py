@@ -3,6 +3,9 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from .models import Conversation, Message
+from django.contrib.auth import get_user_model
+from .models import User, Conversation, Message, MessageHistory
+
 
 User = get_user_model()
 
@@ -43,3 +46,8 @@ class ThreadedMessageSerializer(serializers.Serializer):
     edited = serializers.BooleanField()
     edit_count = serializers.IntegerField()
     replies = serializers.ListField(child=serializers.DictField(), default=[])
+
+    class ConversationSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = Conversation
+            fields = "__all__"

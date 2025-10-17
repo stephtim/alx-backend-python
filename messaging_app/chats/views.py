@@ -6,6 +6,9 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
+from django.shortcuts import render
+from .models import Conversation, Message
+from .serializers import ConversationSerializer, MessageSerializer
 
 from django.db.models import Q, Prefetch
 
@@ -14,6 +17,9 @@ from .serializers import (
     MessageSerializer, ThreadedMessageSerializer, MessageHistorySerializer,
     UserSimpleSerializer
 )
+
+def home(request):
+    return render(request, 'index.html')
 
 class MessageViewSet(viewsets.ModelViewSet):
     queryset = Message.objects.all().select_related('sender', 'receiver', 'parent_message')
@@ -118,3 +124,7 @@ def delete_user(request):
     user = request.user
     user.delete()
     return Response({"detail": "Account and related data deleted."}, status=status.HTTP_204_NO_CONTENT)
+
+class ConversationViewSet(viewsets.ModelViewSet):
+    queryset = Conversation.objects.all()
+    serializer_class = ConversationSerializer

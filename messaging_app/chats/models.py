@@ -3,8 +3,8 @@ from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.utils import timezone
 from django.contrib.auth.models import PermissionsMixin
 import uuid
-from messaging_app.messaging_app import settings
-from Django-signals_orm-0x04.messaging.managers import UnreadMessagesManager
+from messaging_app import settings
+from .managers import UnreadMessagesManager
 
 
 class UserManager(BaseUserManager):
