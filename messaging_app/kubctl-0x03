@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# kubctl-0x03: Rolling update monitoring for Django app
+
+set -euo pipefail
+
+# Configuration
+DEPLOYMENT_FILE="messaging_app/kurbeScript/blue_deployment.yaml"  # Updated deployment file
+DEPLOYMENT_NAME="messaging-app-blue"                                # Name of the Deployment
+SERVICE_NAME="messaging-app-service"                                 # Service to test
+TARGET_REPLICAS=3                                                    # desired replicas
+TEST_DURATION=30                                                     # seconds to test curl requests
+TEST_INTERVAL=2                                                      # seconds between curl requests
+URL="http://localhost"                                               # Adjust if using minikube IP or ingress
+
+# Ensure kubectl can reach the cluster
+if ! kubectl get nodes >/dev/null 2>&1; then
+  echo "Error: kubectl cannot contact cluster. Start minikube or configure context."
+  exit 1
+fi
+
+# Apply the updated deployment (triggers rolling update)
+echo "Applying updated deployment..."
+kubectl apply -f "${DEPLOYMENT_FILE}"
+
+# Scale to target replicas if needed
+kubectl scale deployment/${DEPLOYMENT_NAME} --replicas=${TARGET_REPLICAS}
+
+# Monitor the rolling update
+echo "Monitoring rolling update..."
+kubectl rollout status deployment/${DEPLOYMENT_NAME} --timeout=180s
+
+# Verify pods
+echo
+echo "Current pods after update:"
+kubectl get pods -l app=messaging-app -o wide
+
+# Test application availability with curl (simulate traffic)
+echo
+echo "Testing app availability for ${TEST_DURATION}s..."
+
+END=$((SECONDS+TEST_DURATION))
+while [ $SECONDS -lt $END ]; do
+  RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" $URL)
+  if [ "$RESPONSE" -eq 200 ]; then
+    echo "$(date '+%T') - App OK (HTTP $RESPONSE)"
+  else
+    echo "$(date '+%T') - App DOWN or error (HTTP $RESPONSE)"
+  fi
+  sleep $TEST_INTERVAL
+done
+
+echo
+echo "Rolling update complete! Final pods:"
+kubectl get pods -l app=messaging-app -o wide
