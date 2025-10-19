@@ -34,3 +34,4 @@ kubectl cluster-info
 echo "[INFO] Listing all pods..."
 kubectl get pods --all-namespaces
 
+
