@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: messaging-app-blue
+  labels:
+    app: messaging-app
+    version: blue
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: messaging-app
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: messaging-app
+        version: blue
+    spec:
+      containers:
+        - name: messaging-app
+          image: stephtim/messaging_app:blue
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DJANGO_SETTINGS_MODULE
+              value: messaging_app.settings  # adjust if your settings module is named differently
+          
+          
+apiVersion: v1
+kind: Service
+metadata:
+  name: messaging-app-service
+spec:
+  selector:
+    app: messaging-app
+  ports:
+    - protocol: TCP
+      port: 80           # internal port exposed inside the cluster
+      targetPort: 8000   # port the container listens on
+  type: ClusterIP
