@@ -1,0 +1,173 @@
+#!/usr/bin/env bash
+# kubctl-0x01
+# Usage: ./kubctl-0x01 [-d deployment] [-s service] [-n namespace] [-r replicas] [-p local_port]
+#                     [-P service_port] [-t threads] [-c connections] [-D duration]
+#
+# Default values:
+#   deployment = messaging-app-deployment
+#   service    = messaging-app-service
+#   namespace  = default
+#   replicas   = 3
+#   local_port = 8000
+#   service_port = 80
+#   threads    = 2
+#   connections = 50
+#   duration   = 15s
+set -o errexit
+set -o nounset
+set -o pipefail
+
+# defaults
+DEPLOYMENT="messaging-app-deployment"
+SERVICE="messaging-app-service"
+NAMESPACE="default"
+REPLICAS=3
+LOCAL_PORT=8000
+SERVICE_PORT=80
+THREADS=2
+CONNS=50
+DURATION="15s"
+ROLLOUT_TIMEOUT="120s"
+
+usage() {
+  cat <<EOF
+Usage: $0 [options]
+Options:
+  -d DEPLOYMENT     Deployment name (default: $DEPLOYMENT)
+  -s SERVICE        Service name (default: $SERVICE)
+  -n NAMESPACE      Kubernetes namespace (default: $NAMESPACE)
+  -r REPLICAS       Number of replicas to scale to (default: $REPLICAS)
+  -p LOCAL_PORT     Local port for port-forward (default: $LOCAL_PORT)
+  -P SERVICE_PORT   Service port to forward (default: $SERVICE_PORT)
+  -t THREADS        wrk threads (default: $THREADS)
+  -c CONNECTIONS    wrk connections (default: $CONNS)
+  -D DURATION       wrk duration (eg 15s) (default: $DURATION)
+  -h                Show this help
+EOF
+}
+
+while getopts ":d:s:n:r:p:P:t:c:D:h" opt; do
+  case ${opt} in
+    d) DEPLOYMENT="${OPTARG}" ;;
+    s) SERVICE="${OPTARG}" ;;
+    n) NAMESPACE="${OPTARG}" ;;
+    r) REPLICAS="${OPTARG}" ;;
+    p) LOCAL_PORT="${OPTARG}" ;;
+    P) SERVICE_PORT="${OPTARG}" ;;
+    t) THREADS="${OPTARG}" ;;
+    c) CONNS="${OPTARG}" ;;
+    D) DURATION="${OPTARG}" ;;
+    h) usage; exit 0 ;;
+    \?) echo "Invalid option -$OPTARG" >&2; usage; exit 2 ;;
+    :) echo "Option -$OPTARG requires an argument." >&2; usage; exit 2 ;;
+  esac
+done
+
+echo ">>> Pre-checks: ensure kubectl and a cluster are available..."
+if ! command -v kubectl >/dev/null 2>&1; then
+  echo "Error: kubectl not found. Install kubectl and configure kubeconfig." >&2
+  exit 1
+fi
+
+if ! kubectl get nodes >/dev/null 2>&1; then
+  echo "Error: kubectl cannot contact a cluster. Start your cluster (e.g. minikube start) and set context." >&2
+  exit 1
+fi
+
+echo "Cluster reachable. Using context:"
+kubectl config current-context || true
+echo
+
+# Check deployment exists
+if ! kubectl get deployment "${DEPLOYMENT}" -n "${NAMESPACE}" >/dev/null 2>&1; then
+  echo "Error: deployment '${DEPLOYMENT}' not found in namespace '${NAMESPACE}'." >&2
+  kubectl get deployments -n "${NAMESPACE}" || true
+  exit 1
+fi
+
+# Scale
+echo ">>> Scaling deployment ${DEPLOYMENT} to ${REPLICAS} replicas..."
+kubectl scale deployment/"${DEPLOYMENT}" --replicas="${REPLICAS}" -n "${NAMESPACE}"
+
+echo ">>> Waiting for rollout to finish (timeout ${ROLLOUT_TIMEOUT})..."
+if ! kubectl rollout status deployment/"${DEPLOYMENT}" -n "${NAMESPACE}" --timeout="${ROLLOUT_TIMEOUT}"; then
+  echo "Warning: rollout status did not finish within timeout. Check pods and logs." >&2
+fi
+
+echo
+echo ">>> Current pods for deployment ${DEPLOYMENT}:"
+kubectl get pods -l "app=messaging-app" -n "${NAMESPACE}" -o wide || kubectl get pods -n "${NAMESPACE}" -o wide
+echo
+
+# Port-forward the Service to localhost in the background
+echo ">>> Starting port-forward from svc/${SERVICE}:${SERVICE_PORT} to localhost:${LOCAL_PORT}..."
+kubectl port-forward svc/"${SERVICE}" "${LOCAL_PORT}":"${SERVICE_PORT}" -n "${NAMESPACE}" >/tmp/kpf_${SERVICE}.log 2>&1 &
+PF_PID=$!
+trap 'echo "Killing port-forward (PID ${PF_PID})"; kill ${PF_PID} >/dev/null 2>&1 || true' EXIT
+
+# Wait for local port to be available and the endpoint to respond
+echo -n "Waiting for local endpoint http://127.0.0.1:${LOCAL_PORT}/ to respond"
+MAX_TRIES=30
+i=0
+while [ $i -lt $MAX_TRIES ]; do
+  if curl -sS -m2 "http://127.0.0.1:${LOCAL_PORT}/" >/dev/null 2>&1; then
+    echo " -> OK"
+    break
+  fi
+  echo -n "."
+  sleep 1
+  i=$((i+1))
+done
+
+if [ $i -ge $MAX_TRIES ]; then
+  echo
+  echo "Warning: local endpoint did not respond after ${MAX_TRIES}s. Check service/pods. Port-forward logs at /tmp/kpf_${SERVICE}.log"
+  echo "Port-forward log tail:"
+  tail -n 50 /tmp/kpf_${SERVICE}.log || true
+else
+  echo
+  # Run load test if wrk is present
+  if command -v wrk >/dev/null 2>&1; then
+    OUTFILE="wrk_${DEPLOYMENT}_$(date +%Y%m%d_%H%M%S).txt"
+    echo ">>> Running wrk load test: threads=${THREADS}, connections=${CONNS}, duration=${DURATION}"
+    echo "wrk output -> ${OUTFILE}"
+    wrk -t"${THREADS}" -c"${CONNS}" -d"${DURATION}" "http://127.0.0.1:${LOCAL_PORT}/" | tee "${OUTFILE}"
+  else
+    echo "Note: wrk not found; skipping load test. To install wrk (Ubuntu):"
+    echo "  sudo apt-get install -y build-essential libssl-dev git"
+    echo "  git clone https://github.com/wg/wrk.git && cd wrk && make && sudo cp wrk /usr/local/bin"
+    echo "Or use an alternative load tester like 'hey' or 'ab'."
+  fi
+fi
+
+# kill the port-forward explicitly (trap will also clean up)
+echo ">>> Stopping port-forward (PID ${PF_PID})..."
+kill "${PF_PID}" >/dev/null 2>&1 || true
+sleep 1
+
+# Monitor resource usage using kubectl top (requires metrics-server)
+echo
+echo ">>> kubectl top nodes:"
+if kubectl top nodes >/dev/null 2>&1; then
+  kubectl top nodes
+else
+  echo "kubectl top nodes failed — metrics-server might not be installed."
+  echo "If using minikube: minikube addons enable metrics-server"
+  echo "Or install metrics-server with:"
+  echo "  kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml"
+fi
+
+echo
+echo ">>> kubectl top pods (namespace: ${NAMESPACE}):"
+if kubectl top pods -n "${NAMESPACE}" >/dev/null 2>&1; then
+  kubectl top pods -n "${NAMESPACE}"
+else
+  echo "kubectl top pods failed — metrics-server might not be installed in this cluster/namespace."
+  echo "See the metrics-server installation instructions above."
+fi
+
+echo
+echo ">>> Final pod list:"
+kubectl get pods -n "${NAMESPACE}" -o wide
+echo
+echo "Done."
